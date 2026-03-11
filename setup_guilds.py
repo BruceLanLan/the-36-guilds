@@ -41,8 +41,9 @@ def print_template_list(templates):
             print(f"  {i}. ⚠️  {tpl['file']} — 加载失败: {tpl['error']}")
         else:
             print(f"  {i}. {tpl['icon']}  {tpl['name']} ({tpl['name_en']})")
-            print(f"      {tpl['description'][:60]}...")
+            print(f"      {tpl['description'][:60]}")
             print(f"      Agents: {tpl['agent_count']} | Stages: {tpl['stage_count']}")
+            print(f"      ➜ --template {tpl['file']}")
         print()
 
 
