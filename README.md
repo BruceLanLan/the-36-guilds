@@ -102,27 +102,38 @@ my_team/
     └── task_flow.md
 ```
 
-### 在 OpenClaw 中使用
+### 在 OpenClaw 中使用（Telegram / Lark / Signal）
 
-生成文件后的使用流程：
+> **📖 完整的 TG/Lark 设置指南**：[docs/getting-started.md](docs/getting-started.md)
+
+快速流程：
 
 ```bash
 # 1. 生成 Agent 团队
-python3 setup_guilds.py --template it_company --output ./my_team
+python3 setup_guilds.py --template it_company --output ~/openclaw-agents
 
-# 2. 将 SOUL.md 复制到 OpenClaw 的 agent workspace 目录
-#    或直接运行安装脚本注册到 OpenClaw
-bash ./my_team/install_agents.sh
+# 2. 注册到 OpenClaw
+bash ~/openclaw-agents/install_agents.sh
 
-# 3. 在 OpenClaw 中向「入口 Agent」发送消息
-#    IT公司模版 → 向 👔 CTO 发消息
-#    投资机构模版 → 向 🎯 首席投资官 发消息
-#    量化团队模版 → 向 🧠 首席策略师 发消息
-#    宫廷制模版 → 向 👑 太子 发消息
+# 3. 绑定 TG/Lark 到入口 Agent
+openclaw channel set telegram --agent cto
+
+# 4. 重启 Gateway
+openclaw gateway restart
+
+# 5. 在 TG/Lark 给 Bot 发消息，开始使用！
 ```
 
-> **核心概念**：你只需要和「入口 Agent」对话。TA 会根据 SOUL.md 中的工作流程，
-> 自动把任务拆分、审核、分配给团队中的其他 Agent。审核关卡的 Agent 有权打回不合格产出。
+| 模版 | 入口 Agent | 你只需要和 TA 对话 |
+|------|-----------|------------------|
+| 🏢 IT公司 | 👔 CTO (`cto`) | 所有技术需求 |
+| 💰 投资机构 | 🎯 首席投资官 (`cio`) | 投资研究任务 |
+| 📊 量化团队 | 🧠 首席策略师 (`chief_strategist`) | 量化策略开发 |
+| 🏛️ 宫廷制 | 👑 太子 (`taizi`) | 任何任务 |
+
+> **核心概念**：用户只需要和「入口 Agent」对话（通过 TG/Lark）。
+> TA 会自动把任务拆分、转发给其他 Agent（通过 `@agent_id`）。
+> 审核关卡的 Agent 有权打回不合格产出。整个过程对用户透明。
 
 ### 交互式模式
 

@@ -53,19 +53,36 @@ class TemplateRenderer:
 
     def _build_soul(self, agent, can_send_to, receives_from) -> str:
         responsibilities_md = "\n".join(f"- {r}" for r in agent.responsibilities)
-        send_list = ", ".join(
-            f"{self.template.get_agent(a).icon} {self.template.get_agent(a).name}"
-            for a in can_send_to if self.template.get_agent(a)
-        ) or "无"
-        recv_list = ", ".join(
-            f"{self.template.get_agent(a).icon} {self.template.get_agent(a).name}"
-            for a in receives_from if self.template.get_agent(a)
-        ) or "无"
+
+        send_labels = []
+        for a in can_send_to:
+            t = self.template.get_agent(a)
+            if t:
+                send_labels.append(f"{t.icon} {t.name} (`@{a}`)")
+        recv_labels = []
+        for a in receives_from:
+            t = self.template.get_agent(a)
+            if t:
+                recv_labels.append(f"{t.icon} {t.name} (`@{a}`)")
+
+        send_list = ", ".join(send_labels) or "无"
+        recv_list = ", ".join(recv_labels) or "无"
+
+        is_entry = (agent.id == self.template.entry_point)
+        entry_agent = self.template.get_entry_agent()
+
+        routing = self._build_routing_instructions(agent, can_send_to, receives_from, is_entry)
 
         parts = [
             f"# {agent.icon} {agent.name} — {agent.role}",
             "",
             f"> 组织架构：{self.template.icon} {self.template.name}（{self.template.name_en}）",
+        ]
+
+        if is_entry:
+            parts.append(f"> **🎯 入口 Agent** — 用户通过 Telegram / Lark 直接与你对话")
+
+        parts.extend([
             "",
             "## 角色定位",
             agent.description,
@@ -73,7 +90,10 @@ class TemplateRenderer:
             "## 核心职责",
             responsibilities_md,
             "",
-            "## 通讯权限",
+            "## 通讯权限（OpenClaw）",
+            "",
+            "使用 `@agent_id` 格式给其他 Agent 发送消息。",
+            "",
             f"- **可发送消息给**：{send_list}",
             f"- **可接收消息来自**：{recv_list}",
             "",
@@ -81,8 +101,94 @@ class TemplateRenderer:
             "",
             agent.soul.strip(),
             "",
-        ]
+            "---",
+            "",
+            routing,
+            "",
+        ])
         return "\n".join(parts)
+
+    def _build_routing_instructions(self, agent, can_send_to, receives_from, is_entry) -> str:
+        """Generate OpenClaw-specific routing instructions for this agent."""
+        lines = ["# OpenClaw 协作规则"]
+        lines.append("")
+        lines.append("你是 OpenClaw 多 Agent 协作系统中的一员。请严格遵守以下规则：")
+        lines.append("")
+
+        if is_entry:
+            lines.append("## 你是入口 Agent")
+            lines.append("")
+            lines.append("- 用户通过 Telegram / Lark / Signal 向你发送消息")
+            lines.append("- **简单问题**：直接回复用户")
+            lines.append("- **复杂任务**：整理需求后，使用 `@agent_id` 转发给下游 Agent")
+            lines.append("- 当收到最终结果时，**整理成用户友好的格式直接回复**（用户看不到内部流转）")
+            lines.append("")
+
+        lines.append("## 消息转发规则")
+        lines.append("")
+
+        outgoing = self._get_outgoing_flows(agent.id)
+        incoming = self._get_incoming_flows(agent.id)
+
+        if outgoing:
+            lines.append("当你需要将工作传递给下游时：")
+            for step in outgoing:
+                to_ids = [step.to_agent] if isinstance(step.to_agent, str) else step.to_agent
+                for to_id in to_ids:
+                    to_agent = self.template.get_agent(to_id)
+                    if to_agent:
+                        lines.append(f"- **{step.action}** → 发消息给 `@{to_id}`（{to_agent.icon} {to_agent.name}）")
+            lines.append("")
+
+        if incoming:
+            lines.append("当你收到以下来源的消息时：")
+            for step in incoming:
+                from_ids = [step.from_agent] if isinstance(step.from_agent, str) else step.from_agent
+                for from_id in from_ids:
+                    from_agent = self.template.get_agent(from_id)
+                    if from_agent:
+                        lines.append(f"- 来自 `@{from_id}`（{from_agent.icon} {from_agent.name}）→ {step.action}")
+            lines.append("")
+
+        reject_flows = [s for s in outgoing if s.can_reject]
+        if reject_flows:
+            lines.append("## 审核封驳")
+            lines.append("")
+            for step in reject_flows:
+                if step.reject_to:
+                    reject_agent = self.template.get_agent(step.reject_to)
+                    if reject_agent:
+                        lines.append(f"- 如果不合格，发消息给 `@{step.reject_to}`（{reject_agent.icon} {reject_agent.name}）并说明打回原因")
+            lines.append("")
+
+        lines.append("## 消息格式")
+        lines.append("")
+        lines.append("给其他 Agent 发消息时，使用以下格式：")
+        lines.append("```")
+        lines.append(f"@目标agent_id")
+        lines.append(f"【任务类型】：xxx")
+        lines.append(f"【内容】：xxx")
+        lines.append("```")
+
+        return "\n".join(lines)
+
+    def _get_outgoing_flows(self, agent_id):
+        """Get task_flow steps where this agent is the sender."""
+        results = []
+        for step in self.template.task_flow:
+            sources = [step.from_agent] if isinstance(step.from_agent, str) else step.from_agent
+            if agent_id in sources:
+                results.append(step)
+        return results
+
+    def _get_incoming_flows(self, agent_id):
+        """Get task_flow steps where this agent is the receiver."""
+        results = []
+        for step in self.template.task_flow:
+            targets = [step.to_agent] if isinstance(step.to_agent, str) else step.to_agent
+            if agent_id in targets:
+                results.append(step)
+        return results
 
     # ------------------------------------------------------------------
     # agents.yaml
