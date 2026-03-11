@@ -102,9 +102,9 @@ class GuildsHandler(SimpleHTTPRequestHandler):
             except FileNotFoundError:
                 self._json_response({"error": f"Template '{name}' not found"}, 404)
         elif path == "/api/preview":
-            self._handle_preview(qs)
+            self._safe_handle(self._handle_preview, qs)
         elif path == "/api/verify":
-            self._handle_verify(qs)
+            self._safe_handle(self._handle_verify, qs)
         else:
             super().do_GET()
 
@@ -141,7 +141,7 @@ class GuildsHandler(SimpleHTTPRequestHandler):
             self._json_response({"error": "dir param required"}, 400)
             return
 
-        out = PROJECT_DIR / output_dir
+        out = (PROJECT_DIR / output_dir).resolve()
         if not out.exists():
             self._json_response({"error": "Output directory not found"}, 404)
             return
@@ -215,6 +215,15 @@ class GuildsHandler(SimpleHTTPRequestHandler):
             "agents": agent_details,
         })
 
+    def _safe_handle(self, handler, *args):
+        """Wrap handler in try/except to always return JSON on errors."""
+        try:
+            handler(*args)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self._json_response({"error": f"Internal error: {e}"}, 500)
+
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
@@ -222,7 +231,7 @@ class GuildsHandler(SimpleHTTPRequestHandler):
         if path == "/api/generate":
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length)) if length else {}
-            self._handle_generate(body)
+            self._safe_handle(self._handle_generate, body)
         else:
             self._json_response({"error": "Not found"}, 404)
 
@@ -248,7 +257,7 @@ class GuildsHandler(SimpleHTTPRequestHandler):
             self._json_response({"error": "Validation failed", "details": errors}, 400)
             return
 
-        out = Path(output_dir)
+        out = (PROJECT_DIR / output_dir).resolve()
         out.mkdir(parents=True, exist_ok=True)
         renderer = TemplateRenderer(tpl, out)
         renderer.render_all()
