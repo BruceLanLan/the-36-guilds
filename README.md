@@ -46,15 +46,31 @@
 
 ## 🚀 快速开始
 
-### 安装
+### 一键安装到 OpenClaw（推荐）
 
 ```bash
 git clone https://github.com/BruceLanLan/the-36-guilds.git
 cd the-36-guilds
 pip install pyyaml
+
+# 查看可用模版
+python3 install_openclaw.py --list
+
+# 一键安装（自动检测 OpenClaw、创建 workspace、注册 Agent、重启 Gateway）
+python3 install_openclaw.py --template it_company
 ```
 
-### 方式 1：Web UI（推荐）
+安装脚本自动完成：
+- ✅ 检测 OpenClaw 安装（`~/.openclaw/`）
+- ✅ 备份 `openclaw.json`
+- ✅ 为每个 Agent 创建 workspace + SOUL.md
+- ✅ 注册到 `openclaw.json`（agent list + bindings）
+- ✅ 绑定入口 Agent 到 Telegram
+- ✅ 重启 Gateway
+
+安装完直接在 Telegram 给 Bot 发消息就能用了。
+
+### 方式 2：Web UI（浏览模版 + 预览）
 
 ```bash
 python3 server.py
