@@ -5,6 +5,7 @@ template:
   icon: "🏛️"
   version: "1.0"
   category: "historical"
+  entry_point: taizi
   metadata:
     origin: "唐朝三省六部制 (618-907 AD)"
     inspiration: "github.com/cft0808/edict"

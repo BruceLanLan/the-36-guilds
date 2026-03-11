@@ -5,6 +5,7 @@ template:
   icon: "💰"
   version: "1.0"
   category: "finance"
+  entry_point: cio
   metadata:
     strength: "研究驱动决策，独立风控审查，合规性保障"
     best_for: "投研分析、交易策略开发、资产配置、金融报告"

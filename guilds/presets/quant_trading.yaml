@@ -5,6 +5,7 @@ template:
   icon: "📊"
   version: "1.0"
   category: "quant"
+  entry_point: chief_strategist
   metadata:
     strength: "量化专精，从策略研发到执行交易全链路覆盖，独立风控把关"
     best_for: "量化策略开发、自动化交易、回测优化、市场分析"

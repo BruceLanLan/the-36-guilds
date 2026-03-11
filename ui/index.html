@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三十六行 · The 36 Guilds</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0c0c14;--card:#161625;--card-hover:#1e1e32;
+  --border:#2a2a3e;--text:#e2e8f0;--muted:#64748b;
+  --gold:#f59e0b;--gold-dim:#92610a;--indigo:#6366f1;
+  --green:#10b981;--red:#ef4444;--blue:#3b82f6;
+  --radius:12px;
+}
+body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+a{color:var(--gold);text-decoration:none}
+
+/* Header */
+header{text-align:center;padding:40px 20px 20px;border-bottom:1px solid var(--border)}
+header h1{font-size:2rem;background:linear-gradient(135deg,var(--gold),#fbbf24,var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+header p{color:var(--muted);margin-top:8px;font-size:1rem}
+
+/* Main */
+main{max-width:1100px;margin:0 auto;padding:30px 20px}
+
+/* Gallery */
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:20px;margin-top:20px}
+.tpl-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;cursor:pointer;transition:all .2s}
+.tpl-card:hover{border-color:var(--gold);background:var(--card-hover);transform:translateY(-2px)}
+.tpl-card .card-head{display:flex;align-items:center;gap:12px}
+.tpl-card .card-icon{font-size:2.2rem}
+.tpl-card .card-title{font-size:1.2rem;font-weight:600}
+.tpl-card .card-en{color:var(--muted);font-size:.85rem}
+.tpl-card .card-desc{color:var(--muted);margin-top:12px;font-size:.9rem;line-height:1.5}
+.tpl-card .card-stats{display:flex;gap:16px;margin-top:14px}
+.tpl-card .stat{background:var(--bg);padding:4px 12px;border-radius:20px;font-size:.8rem;color:var(--gold)}
+
+/* Section title */
+.section-title{font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;margin-top:28px}
+
+/* Detail view */
+#detail{display:none}
+#detail.active{display:block}
+#gallery.hidden{display:none}
+
+.back-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:.9rem;transition:all .15s}
+.back-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+.detail-header{margin-top:20px;display:flex;align-items:center;gap:16px}
+.detail-header .icon{font-size:3rem}
+.detail-header h2{font-size:1.6rem}
+.detail-header .sub{color:var(--muted);font-size:.9rem}
+.entry-badge{display:inline-block;background:var(--gold-dim);color:#fef3c7;padding:4px 12px;border-radius:20px;font-size:.8rem;margin-top:8px}
+
+/* Pipeline */
+.pipeline{display:flex;align-items:center;gap:0;margin-top:20px;overflow-x:auto;padding:16px 0}
+.stage-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 16px;min-width:120px;text-align:center;flex-shrink:0}
+.stage-box .stage-name{font-weight:600;font-size:.9rem}
+.stage-box .stage-agents{color:var(--muted);font-size:.75rem;margin-top:4px}
+.stage-arrow{color:var(--gold);font-size:1.4rem;padding:0 6px;flex-shrink:0}
+.stage-box.has-gate{border-color:var(--red);box-shadow:0 0 0 1px rgba(239,68,68,.2)}
+.stage-box .gate-badge{background:var(--red);color:#fff;font-size:.65rem;padding:2px 6px;border-radius:8px;margin-top:4px;display:inline-block}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;margin-top:28px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab{padding:10px 20px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;font-size:.9rem}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+.tab-content{margin-top:20px;display:none}
+.tab-content.active{display:block}
+
+/* Agents grid */
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.agent-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.agent-card.is-entry{border-color:var(--gold);box-shadow:0 0 0 1px rgba(245,158,11,.15)}
+.agent-card .agent-head{display:flex;align-items:center;gap:10px}
+.agent-card .agent-icon{font-size:1.6rem}
+.agent-card .agent-name{font-weight:600}
+.agent-card .agent-role{color:var(--muted);font-size:.8rem}
+.agent-card .agent-desc{color:var(--muted);font-size:.85rem;margin-top:8px;line-height:1.4}
+.agent-card .agent-resp{margin-top:10px;font-size:.8rem;color:var(--text)}
+.agent-card .agent-resp li{margin-left:16px;margin-top:2px;color:var(--muted)}
+.agent-entry-tag{background:var(--gold);color:#000;font-size:.7rem;padding:2px 8px;border-radius:8px;font-weight:600}
+
+/* Permissions */
+.perm-table{width:100%;border-collapse:collapse;font-size:.8rem;overflow-x:auto;display:block}
+.perm-table th,.perm-table td{padding:8px 6px;text-align:center;border:1px solid var(--border);white-space:nowrap}
+.perm-table th{background:var(--card);color:var(--muted);font-weight:500;position:sticky;top:0}
+.perm-table td.yes{color:var(--green);font-weight:bold}
+.perm-table td.self{color:var(--muted)}
+
+/* Task flow */
+.flow-steps{position:relative}
+.flow-step{display:flex;gap:16px;padding:14px 0;position:relative}
+.flow-step:not(:last-child)::before{content:'';position:absolute;left:15px;top:42px;bottom:0;width:2px;background:var(--border)}
+.flow-dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;flex-shrink:0;z-index:1}
+.flow-dot.normal{background:var(--indigo);color:#fff}
+.flow-dot.reject{background:var(--red);color:#fff}
+.flow-body .flow-action{font-size:.9rem;font-weight:500}
+.flow-body .flow-desc{color:var(--muted);font-size:.8rem;margin-top:2px}
+.flow-body .flow-reject{color:var(--red);font-size:.8rem;margin-top:2px}
+
+/* Generate button */
+.gen-bar{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:30px 0 20px;text-align:center;margin-top:40px}
+.gen-btn{background:linear-gradient(135deg,var(--gold),#d97706);color:#000;border:none;padding:14px 40px;border-radius:10px;font-size:1.1rem;font-weight:700;cursor:pointer;transition:all .2s}
+.gen-btn:hover{transform:scale(1.03);box-shadow:0 4px 24px rgba(245,158,11,.3)}
+.gen-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* Result */
+#result{display:none}
+#result.active{display:block}
+.result-box{background:var(--card);border:1px solid var(--green);border-radius:var(--radius);padding:24px;margin-top:20px}
+.result-box h3{color:var(--green);margin-bottom:16px}
+.file-list{list-style:none;font-family:'SF Mono',Monaco,monospace;font-size:.85rem}
+.file-list li{padding:4px 0;color:var(--muted)}
+.file-list li::before{content:'📄 ';font-size:.9rem}
+.next-steps{margin-top:20px;background:var(--bg);border-radius:10px;padding:16px}
+.next-steps li{margin:8px 0 8px 20px;color:var(--muted);font-size:.9rem}
+.next-steps li strong{color:var(--gold)}
+
+/* Loading */
+.loading{text-align:center;padding:60px;color:var(--muted)}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Responsive */
+@media(max-width:600px){
+  .gallery-grid{grid-template-columns:1fr}
+  .agents-grid{grid-template-columns:1fr}
+  .pipeline{flex-wrap:wrap;gap:8px}
+  header h1{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>三十六行 · The 36 Guilds</h1>
+  <p>行行出状元 — Every guild has its champion</p>
+</header>
+
+<main>
+  <!-- Gallery View -->
+  <section id="gallery">
+    <p class="section-title">选择组织架构模版 · Choose a Template</p>
+    <div class="gallery-grid" id="grid"></div>
+  </section>
+
+  <!-- Detail View -->
+  <section id="detail">
+    <button class="back-btn" onclick="showGallery()">← 返回模版列表</button>
+    <div id="detail-header"></div>
+    <div id="pipeline"></div>
+
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-tab="agents" onclick="switchTab('agents')">🤖 Agents</div>
+      <div class="tab" data-tab="permissions" onclick="switchTab('permissions')">🔒 权限矩阵</div>
+      <div class="tab" data-tab="flow" onclick="switchTab('flow')">📋 任务流转</div>
+    </div>
+
+    <div class="tab-content active" id="tab-agents"></div>
+    <div class="tab-content" id="tab-permissions"></div>
+    <div class="tab-content" id="tab-flow"></div>
+
+    <div class="gen-bar">
+      <button class="gen-btn" onclick="generate()">⚡ 一键生成 Agent 团队</button>
+    </div>
+  </section>
+
+  <!-- Result View -->
+  <section id="result">
+    <button class="back-btn" onclick="showDetail()">← 返回模版详情</button>
+    <div id="result-content"></div>
+  </section>
+</main>
+
+<script>
+let templates = [];
+let current = null;
+let currentFile = '';
+
+async function init() {
+  document.getElementById('grid').innerHTML = '<div class="loading"><span class="spin">⏳</span> 加载中...</div>';
+  try {
+    const res = await fetch('/api/templates');
+    templates = await res.json();
+    renderGallery();
+  } catch (e) {
+    document.getElementById('grid').innerHTML = '<div class="loading">❌ 无法连接服务器</div>';
+  }
+}
+
+function renderGallery() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = templates.filter(t => !t.error).map(t => `
+    <div class="tpl-card" onclick="openTemplate('${t.file}')">
+      <div class="card-head">
+        <span class="card-icon">${t.icon}</span>
+        <div>
+          <div class="card-title">${t.name}</div>
+          <div class="card-en">${t.name_en}</div>
+        </div>
+      </div>
+      <div class="card-desc">${t.description}</div>
+      <div class="card-stats">
+        <span class="stat">🤖 ${t.agent_count} Agents</span>
+        <span class="stat">📋 ${t.stage_count} Stages</span>
+        <span class="stat">${t.category}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openTemplate(name) {
+  currentFile = name;
+  const res = await fetch(`/api/templates/${name}`);
+  current = await res.json();
+  renderDetail();
+  document.getElementById('gallery').classList.add('hidden');
+  document.getElementById('detail').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function showGallery() {
+  document.getElementById('gallery').classList.remove('hidden');
+  document.getElementById('detail').classList.remove('active');
+  document.getElementById('result').classList.remove('active');
+}
+
+function showDetail() {
+  document.getElementById('result').classList.remove('active');
+  document.getElementById('detail').classList.add('active');
+}
+
+function renderDetail() {
+  const t = current;
+  const entry = t.entry_agent;
+
+  document.getElementById('detail-header').innerHTML = `
+    <div class="detail-header">
+      <span class="icon">${t.icon}</span>
+      <div>
+        <h2>${t.name} · ${t.name_en}</h2>
+        <div class="sub">${t.description}</div>
+        ${entry ? `<div class="entry-badge">🎯 入口 Agent: ${entry.icon} ${entry.name} — 用户在 OpenClaw 中向 TA 发送消息</div>` : ''}
+      </div>
+    </div>
+  `;
+
+  renderPipeline();
+  renderAgents();
+  renderPermissions();
+  renderFlow();
+  switchTab('agents');
+}
+
+function renderPipeline() {
+  const t = current;
+  const gateStages = new Set(t.review_gates.map(g => g.stage));
+  const agentMap = {};
+  t.agents.forEach(a => {
+    if (!agentMap[a.stage]) agentMap[a.stage] = [];
+    agentMap[a.stage].push(a);
+  });
+
+  document.getElementById('pipeline').innerHTML = `
+    <p class="section-title">任务流水线 · Pipeline</p>
+    <div class="pipeline">
+      ${t.stages.map((s, i) => {
+        const agents = agentMap[s.id] || [];
+        const hasGate = gateStages.has(s.id);
+        return `
+          ${i > 0 ? '<span class="stage-arrow">→</span>' : ''}
+          <div class="stage-box ${hasGate ? 'has-gate' : ''}">
+            <div class="stage-name">${s.name}</div>
+            <div class="stage-agents">${agents.map(a => a.icon + a.name).join(', ')}</div>
+            ${hasGate ? '<span class="gate-badge">✋ 审核关卡</span>' : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderAgents() {
+  const t = current;
+  document.getElementById('tab-agents').innerHTML = `
+    <div class="agents-grid">
+      ${t.agents.map(a => `
+        <div class="agent-card ${a.id === t.entry_point ? 'is-entry' : ''}">
+          <div class="agent-head">
+            <span class="agent-icon">${a.icon}</span>
+            <div>
+              <span class="agent-name">${a.name}</span>
+              ${a.id === t.entry_point ? '<span class="agent-entry-tag">入口</span>' : ''}
+              <div class="agent-role">${a.role}</div>
+            </div>
+          </div>
+          <div class="agent-desc">${a.description}</div>
+          <ul class="agent-resp">
+            ${a.responsibilities.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderPermissions() {
+  const t = current;
+  const ids = t.agents.map(a => a.id);
+  const nameMap = {};
+  t.agents.forEach(a => nameMap[a.id] = a.icon + a.name);
+
+  let html = '<div style="overflow-x:auto"><table class="perm-table"><tr><th>From ↓ \\ To →</th>';
+  ids.forEach(id => html += `<th>${nameMap[id]}</th>`);
+  html += '</tr>';
+
+  ids.forEach(src => {
+    const targets = new Set(t.permissions[src] || []);
+    html += `<tr><th>${nameMap[src]}</th>`;
+    ids.forEach(dst => {
+      if (src === dst) html += '<td class="self">—</td>';
+      else if (targets.has(dst)) html += '<td class="yes">✅</td>';
+      else html += '<td></td>';
+    });
+    html += '</tr>';
+  });
+  html += '</table></div>';
+  document.getElementById('tab-permissions').innerHTML = html;
+}
+
+function renderFlow() {
+  const t = current;
+  const nameMap = {};
+  t.agents.forEach(a => nameMap[a.id] = a.icon + a.name);
+
+  const getName = v => {
+    if (Array.isArray(v)) return v.map(x => nameMap[x] || x).join(' + ');
+    return nameMap[v] || v;
+  };
+
+  document.getElementById('tab-flow').innerHTML = `
+    <div class="flow-steps">
+      ${t.task_flow.map((step, i) => `
+        <div class="flow-step">
+          <div class="flow-dot ${step.can_reject ? 'reject' : 'normal'}">${i + 1}</div>
+          <div class="flow-body">
+            <div class="flow-action">${getName(step.from)} → ${getName(step.to)}</div>
+            <div class="flow-desc">${step.action}</div>
+            ${step.can_reject && step.reject_to ? `<div class="flow-reject">🚫 可打回至: ${nameMap[step.reject_to] || step.reject_to}</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.toggle('active', el.id === 'tab-' + tab));
+}
+
+async function generate() {
+  const btn = document.querySelector('.gen-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 生成中...';
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({template: currentFile, output_dir: './output/' + currentFile})
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      alert('生成失败: ' + data.error + '\n' + (data.details || []).join('\n'));
+      return;
+    }
+
+    document.getElementById('detail').classList.remove('active');
+    document.getElementById('result').classList.add('active');
+
+    const entry = data.entry_point;
+    document.getElementById('result-content').innerHTML = `
+      <div class="result-box">
+        <h3>✅ 生成完成！${current.icon} ${current.name}</h3>
+        <p style="color:var(--muted);margin-bottom:16px">${data.agent_count} 个 Agent 已就绪，输出目录: <code>${data.output_dir}</code></p>
+
+        <p class="section-title">生成的文件</p>
+        <ul class="file-list">
+          ${data.files.map(f => `<li>${f}</li>`).join('')}
+        </ul>
+
+        <div class="next-steps">
+          <p class="section-title">下一步操作</p>
+          <ol>
+            <li>查看 <strong>agent_workspaces/</strong> 中的 SOUL.md 文件，按需调整 Agent 人格</li>
+            <li>编辑 <strong>config/agents.yaml</strong> 调整各 Agent 的模型配置</li>
+            <li>运行 <strong>bash ${data.output_dir}/install_agents.sh</strong> 注册到 OpenClaw</li>
+            ${entry ? `<li>在 OpenClaw 中向 <strong>${entry.icon} ${entry.name}</strong> 发送消息，开始多 Agent 协作！</li>` : ''}
+          </ol>
+        </div>
+
+        ${entry ? `
+        <div style="margin-top:20px;padding:16px;background:var(--bg);border-radius:10px;border:1px solid var(--gold-dim)">
+          <p style="font-size:.9rem"><strong>🎯 使用提示</strong></p>
+          <p style="color:var(--muted);font-size:.85rem;margin-top:6px">
+            所有任务都从 <strong>${entry.icon} ${entry.name}</strong> 开始。
+            你只需要向 TA 发送消息，TA 会自动将任务分配给团队中的其他 Agent。
+            每个阶段的 Agent 完成工作后会自动流转到下一个环节。
+            审核关卡的 Agent 有权打回不合格的产出。
+          </p>
+        </div>
+        ` : ''}
+      </div>
+    `;
+    window.scrollTo(0, 0);
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⚡ 一键生成 Agent 团队';
+  }
+}
+
+init();
+</script>
+</body>
+</html>
