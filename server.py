@@ -88,6 +88,7 @@ class GuildsHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        qs = parse_qs(parsed.query)
 
         if path == "" or path == "/index.html":
             self._serve_file(PROJECT_DIR / "ui" / "index.html", "text/html")
@@ -100,8 +101,119 @@ class GuildsHandler(SimpleHTTPRequestHandler):
                 self._json_response({"file": name, **template_to_dict(tpl)})
             except FileNotFoundError:
                 self._json_response({"error": f"Template '{name}' not found"}, 404)
+        elif path == "/api/preview":
+            self._handle_preview(qs)
+        elif path == "/api/verify":
+            self._handle_verify(qs)
         else:
             super().do_GET()
+
+    def _handle_preview(self, qs):
+        """Read and return a generated file's content."""
+        output_dir = qs.get("dir", [""])[0]
+        file_path = qs.get("file", [""])[0]
+        if not output_dir or not file_path:
+            self._json_response({"error": "dir and file params required"}, 400)
+            return
+
+        target = (PROJECT_DIR / output_dir / file_path).resolve()
+        output_root = (PROJECT_DIR / output_dir).resolve()
+        if not str(target).startswith(str(output_root)):
+            self._json_response({"error": "Invalid path"}, 403)
+            return
+
+        if not target.exists():
+            self._json_response({"error": "File not found"}, 404)
+            return
+
+        content = target.read_text(encoding="utf-8")
+        self._json_response({
+            "file": file_path,
+            "content": content,
+            "size": len(content),
+            "lines": content.count("\n") + 1,
+        })
+
+    def _handle_verify(self, qs):
+        """Verify a generated output directory — check all expected files exist and are valid."""
+        output_dir = qs.get("dir", [""])[0]
+        if not output_dir:
+            self._json_response({"error": "dir param required"}, 400)
+            return
+
+        out = PROJECT_DIR / output_dir
+        if not out.exists():
+            self._json_response({"error": "Output directory not found"}, 404)
+            return
+
+        checks = []
+        all_ok = True
+
+        soul_files = list((out / "agent_workspaces").rglob("SOUL.md")) if (out / "agent_workspaces").exists() else []
+        checks.append({
+            "name": "SOUL.md 文件",
+            "status": "ok" if soul_files else "fail",
+            "detail": f"找到 {len(soul_files)} 个 Agent 的 SOUL.md",
+            "items": [str(f.relative_to(out)) for f in sorted(soul_files)],
+        })
+        if not soul_files:
+            all_ok = False
+
+        has_routing = 0
+        has_entry_tag = 0
+        agent_details = []
+        for sf in sorted(soul_files):
+            content = sf.read_text(encoding="utf-8")
+            agent_id = sf.parent.name
+            routing_ok = "OpenClaw 协作规则" in content
+            entry_ok = "🎯 入口 Agent" in content
+            if routing_ok:
+                has_routing += 1
+            if entry_ok:
+                has_entry_tag += 1
+            agent_details.append({
+                "id": agent_id,
+                "lines": content.count("\n") + 1,
+                "size": len(content),
+                "has_routing": routing_ok,
+                "is_entry": entry_ok,
+            })
+
+        checks.append({
+            "name": "OpenClaw 路由规则",
+            "status": "ok" if has_routing == len(soul_files) else "warn",
+            "detail": f"{has_routing}/{len(soul_files)} 个 SOUL.md 包含 @agent_id 路由指令",
+        })
+
+        checks.append({
+            "name": "入口 Agent 标记",
+            "status": "ok" if has_entry_tag == 1 else ("warn" if has_entry_tag == 0 else "fail"),
+            "detail": f"{has_entry_tag} 个 Agent 被标记为入口",
+        })
+
+        config_files = {
+            "config/agents.yaml": "Agent 模型配置",
+            "openclaw_agents.json": "OpenClaw 注册配置",
+            "install_agents.sh": "安装脚本",
+            "docs/permission_matrix.md": "权限矩阵文档",
+            "docs/task_flow.md": "任务流转文档",
+        }
+        for fname, label in config_files.items():
+            exists = (out / fname).exists()
+            checks.append({
+                "name": label,
+                "status": "ok" if exists else "fail",
+                "detail": f"{fname} {'✅ 存在' if exists else '❌ 缺失'}",
+            })
+            if not exists:
+                all_ok = False
+
+        self._json_response({
+            "output_dir": str(out),
+            "all_ok": all_ok,
+            "checks": checks,
+            "agents": agent_details,
+        })
 
     def do_POST(self):
         parsed = urlparse(self.path)
