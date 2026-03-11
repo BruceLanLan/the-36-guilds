@@ -26,6 +26,7 @@ sys.path.insert(0, str(PROJECT_DIR))
 from guilds.engine import TemplateEngine
 from guilds.renderer import TemplateRenderer
 
+SERVER_VERSION = "0.2.1"
 engine = TemplateEngine()
 
 
@@ -92,6 +93,12 @@ class GuildsHandler(SimpleHTTPRequestHandler):
 
         if path == "" or path == "/index.html":
             self._serve_file(PROJECT_DIR / "ui" / "index.html", "text/html")
+        elif path == "/api/health":
+            self._json_response({
+                "version": SERVER_VERSION,
+                "project_dir": str(PROJECT_DIR),
+                "templates": len(engine.list_templates()),
+            })
         elif path == "/api/templates":
             self._json_response(engine.list_templates())
         elif path.startswith("/api/templates/"):

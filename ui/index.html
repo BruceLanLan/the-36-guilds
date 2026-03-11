@@ -209,6 +209,8 @@ main{max-width:1100px;margin:0 auto;padding:30px 20px}
     <div id="result-content"></div>
   </section>
 
+  <div id="server-version" style="text-align:center;color:var(--muted);font-size:.75rem;margin-top:40px;padding-bottom:20px"></div>
+
   <!-- File Preview Modal -->
   <div id="preview-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closePreview()">
     <div class="modal">
@@ -240,6 +242,11 @@ async function init() {
   } catch (e) {
     document.getElementById('grid').innerHTML = '<div class="loading">❌ 无法连接服务器</div>';
   }
+  try {
+    const hres = await fetch('/api/health');
+    const h = await hres.json();
+    document.getElementById('server-version').textContent = `Server v${h.version} · ${h.templates} templates · ${h.project_dir}`;
+  } catch {}
 }
 
 function renderGallery() {
@@ -490,7 +497,18 @@ async function generate() {
 async function runVerification() {
   try {
     const res = await fetch(`/api/verify?dir=${encodeURIComponent(lastOutputDir)}`);
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      console.error('Verify response not JSON:', text.substring(0, 200));
+      document.getElementById('verify-section').innerHTML = `
+        <p style="color:var(--red)">验证接口返回异常（非 JSON），请确认服务端为最新版本。</p>
+        <p style="color:var(--muted);font-size:.8rem;margin-top:8px">
+          在 VPS 终端执行: <code>cd 项目目录 && git pull && python3 server.py --host 0.0.0.0</code><br>
+          检查版本: <code>curl http://localhost:7892/api/health</code>
+        </p>`;
+      return;
+    }
     if (data.error) {
       document.getElementById('verify-section').innerHTML = `<p style="color:var(--red)">验证失败: ${data.error}</p>`;
       return;
@@ -550,7 +568,13 @@ async function previewFile(filePath) {
 
   try {
     const res = await fetch(`/api/preview?dir=${encodeURIComponent(lastOutputDir)}&file=${encodeURIComponent(filePath)}`);
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch {
+      contentEl.textContent = '服务端返回异常（非 JSON）。请 git pull 更新后重启 server.py';
+      metaEl.textContent = '';
+      return;
+    }
     if (data.error) {
       contentEl.textContent = '错误: ' + data.error;
       metaEl.textContent = '';
