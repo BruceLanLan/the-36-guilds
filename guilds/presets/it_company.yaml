@@ -5,6 +5,7 @@ template:
   icon: "🏢"
   version: "1.0"
   category: "corporate"
+  entry_point: cto
   metadata:
     strength: "扁平化协作，快速迭代反馈，符合现代软件工程最佳实践"
     best_for: "软件开发、产品迭代、技术项目管理"

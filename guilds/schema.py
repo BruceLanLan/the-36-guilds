@@ -61,7 +61,14 @@ class OrgTemplate:
     permissions: Dict[str, List[str]]
     task_flow: List[TaskFlowStep]
     review_gates: List[ReviewGate]
+    entry_point: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def get_entry_agent(self) -> Optional[AgentDef]:
+        """The agent users should message first."""
+        if self.entry_point:
+            return self.get_agent(self.entry_point)
+        return self.agents[0] if self.agents else None
 
     def get_agent(self, agent_id: str) -> Optional[AgentDef]:
         for agent in self.agents:

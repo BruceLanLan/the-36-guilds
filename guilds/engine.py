@@ -127,6 +127,7 @@ class TemplateEngine:
             permissions=permissions,
             task_flow=task_flow,
             review_gates=review_gates,
+            entry_point=data.get("entry_point", agents[0].id if agents else ""),
             metadata=data.get("metadata", {}),
         )
 

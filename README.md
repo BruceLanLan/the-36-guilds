@@ -42,6 +42,7 @@
 - ⚡ **一键生成** — SOUL.md + config + install script + 文档全部自动生成
 - ✏️ **完全可定制** — 选择模版 → 修改 → 导出 → 使用自己的组织架构
 - 🔌 **OpenClaw 集成** — 自动生成 OpenClaw 注册配置和安装脚本
+- 🌐 **Web UI 看板** — 可视化选择模版、查看流水线、一键生成
 
 ## 🚀 快速开始
 
@@ -53,7 +54,21 @@ cd the-36-guilds
 pip install pyyaml
 ```
 
-### 30 秒体验
+### 方式 1：Web UI（推荐）
+
+```bash
+python3 server.py
+# 打开浏览器 → http://127.0.0.1:7892
+```
+
+Web UI 提供：
+- 模版画廊 — 浏览所有组织架构模版
+- 流水线可视化 — 查看任务流转和审核关卡
+- Agent 详情 — 每个 Agent 的角色、职责、权限
+- 权限矩阵 — 可视化 Agent 间通讯权限
+- 一键生成 — 点击按钮即可生成所有文件
+
+### 方式 2：命令行
 
 ```bash
 # 列出所有可用模版
@@ -86,6 +101,28 @@ my_team/
     ├── permission_matrix.md
     └── task_flow.md
 ```
+
+### 在 OpenClaw 中使用
+
+生成文件后的使用流程：
+
+```bash
+# 1. 生成 Agent 团队
+python3 setup_guilds.py --template it_company --output ./my_team
+
+# 2. 将 SOUL.md 复制到 OpenClaw 的 agent workspace 目录
+#    或直接运行安装脚本注册到 OpenClaw
+bash ./my_team/install_agents.sh
+
+# 3. 在 OpenClaw 中向「入口 Agent」发送消息
+#    IT公司模版 → 向 👔 CTO 发消息
+#    投资机构模版 → 向 🎯 首席投资官 发消息
+#    量化团队模版 → 向 🧠 首席策略师 发消息
+#    宫廷制模版 → 向 👑 太子 发消息
+```
+
+> **核心概念**：你只需要和「入口 Agent」对话。TA 会根据 SOUL.md 中的工作流程，
+> 自动把任务拆分、审核、分配给团队中的其他 Agent。审核关卡的 Agent 有权打回不合格产出。
 
 ### 交互式模式
 
