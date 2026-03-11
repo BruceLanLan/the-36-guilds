@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+.env
+.tox/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Generated output (users will generate their own)
+agent_workspaces/
+output/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

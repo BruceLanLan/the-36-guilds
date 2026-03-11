@@ -1,0 +1,326 @@
+"""
+Template Renderer — generates all artifacts needed to run a multi-agent setup:
+  - SOUL.md files (agent personality / workflow rules)
+  - agents.yaml config
+  - openclaw.json permission entries
+  - install_agents.sh setup script
+"""
+
+import json
+from datetime import datetime
+from pathlib import Path
+
+import yaml
+
+from .schema import OrgTemplate
+
+
+class TemplateRenderer:
+    """Render an OrgTemplate into on-disk artifacts."""
+
+    def __init__(self, template: OrgTemplate, output_dir: Path):
+        self.template = template
+        self.output_dir = output_dir
+
+    def render_all(self):
+        """Generate every artifact in one call."""
+        self.render_soul_files()
+        self.render_agents_config()
+        self.render_openclaw_config()
+        self.render_install_script()
+        self.render_permission_matrix()
+        self.render_flow_diagram()
+
+    # ------------------------------------------------------------------
+    # SOUL.md
+    # ------------------------------------------------------------------
+
+    def render_soul_files(self):
+        """Create agents/<id>/SOUL.md for each agent."""
+        for agent in self.template.agents:
+            agent_dir = self.output_dir / "agent_workspaces" / agent.id
+            agent_dir.mkdir(parents=True, exist_ok=True)
+            soul_path = agent_dir / "SOUL.md"
+
+            can_send_to = self.template.permissions.get(agent.id, [])
+            receives_from = [
+                aid for aid, targets in self.template.permissions.items()
+                if agent.id in targets
+            ]
+
+            content = self._build_soul(agent, can_send_to, receives_from)
+            soul_path.write_text(content, encoding="utf-8")
+
+    def _build_soul(self, agent, can_send_to, receives_from) -> str:
+        responsibilities_md = "\n".join(f"- {r}" for r in agent.responsibilities)
+        send_list = ", ".join(
+            f"{self.template.get_agent(a).icon} {self.template.get_agent(a).name}"
+            for a in can_send_to if self.template.get_agent(a)
+        ) or "无"
+        recv_list = ", ".join(
+            f"{self.template.get_agent(a).icon} {self.template.get_agent(a).name}"
+            for a in receives_from if self.template.get_agent(a)
+        ) or "无"
+
+        parts = [
+            f"# {agent.icon} {agent.name} — {agent.role}",
+            "",
+            f"> 组织架构：{self.template.icon} {self.template.name}（{self.template.name_en}）",
+            "",
+            "## 角色定位",
+            agent.description,
+            "",
+            "## 核心职责",
+            responsibilities_md,
+            "",
+            "## 通讯权限",
+            f"- **可发送消息给**：{send_list}",
+            f"- **可接收消息来自**：{recv_list}",
+            "",
+            "---",
+            "",
+            agent.soul.strip(),
+            "",
+        ]
+        return "\n".join(parts)
+
+    # ------------------------------------------------------------------
+    # agents.yaml
+    # ------------------------------------------------------------------
+
+    def render_agents_config(self):
+        """Generate config/agents.yaml from the template."""
+        config_dir = self.output_dir / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+
+        agents_cfg = {}
+        for agent in self.template.agents:
+            agents_cfg[agent.id] = {
+                "name": agent.name,
+                "role": agent.role,
+                "stage": agent.stage,
+                "model": agent.model,
+                "skills": agent.skills,
+                "permissions": self.template.permissions.get(agent.id, []),
+            }
+
+        data = {
+            "template": {
+                "name": self.template.name,
+                "name_en": self.template.name_en,
+                "version": self.template.version,
+                "category": self.template.category,
+            },
+            "system": {
+                "heartbeat_interval": 900,
+                "workspace": "./agent_workspaces",
+            },
+            "stages": [
+                {"id": s.id, "name": s.name, "description": s.description}
+                for s in self.template.stages
+            ],
+            "agents": agents_cfg,
+        }
+
+        path = config_dir / "agents.yaml"
+        path.write_text(
+            yaml.dump(data, allow_unicode=True, sort_keys=False, default_flow_style=False),
+            encoding="utf-8",
+        )
+
+    # ------------------------------------------------------------------
+    # openclaw.json
+    # ------------------------------------------------------------------
+
+    def render_openclaw_config(self) -> dict:
+        """Generate openclaw_agents.json with agent registrations and permissions."""
+        agents_list = []
+        for agent in self.template.agents:
+            agents_list.append({
+                "id": agent.id,
+                "name": f"{agent.icon} {agent.name}",
+                "role": agent.role,
+                "workspace": f"./agent_workspaces/{agent.id}",
+                "model": agent.model,
+                "allowed_contacts": self.template.permissions.get(agent.id, []),
+            })
+
+        data = {
+            "_comment": f"Auto-generated by The 36 Guilds from template: {self.template.name} ({self.template.name_en})",
+            "_generated_at": datetime.now().isoformat(),
+            "agents": agents_list,
+        }
+
+        path = self.output_dir / "openclaw_agents.json"
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        return data
+
+    # ------------------------------------------------------------------
+    # install script
+    # ------------------------------------------------------------------
+
+    def render_install_script(self):
+        """Generate install_agents.sh that sets up OpenClaw workspaces."""
+        lines = [
+            "#!/usr/bin/env bash",
+            f'# Auto-generated by The 36 Guilds',
+            f'# Template: {self.template.icon} {self.template.name} ({self.template.name_en})',
+            f'# Generated at: {datetime.now().isoformat()}',
+            'set -euo pipefail',
+            '',
+            'echo "============================================"',
+            f'echo "{self.template.icon} Installing: {self.template.name} ({self.template.name_en})"',
+            f'echo "  Agents: {len(self.template.agents)}"',
+            f'echo "  Stages: {len(self.template.stages)}"',
+            'echo "============================================"',
+            '',
+            'if ! command -v openclaw &>/dev/null; then',
+            '    echo "⚠️  openclaw CLI not found. Skipping agent registration."',
+            '    echo "   Workspaces and SOUL.md files will still be created."',
+            '    SKIP_REGISTER=1',
+            'else',
+            '    SKIP_REGISTER=0',
+            'fi',
+            '',
+            'SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"',
+            'WORKSPACE_DIR="${SCRIPT_DIR}/agent_workspaces"',
+            '',
+            'echo ""',
+            'echo "📁 Creating agent workspaces..."',
+        ]
+
+        for agent in self.template.agents:
+            lines.append(f'mkdir -p "${{WORKSPACE_DIR}}/{agent.id}"')
+            lines.append(f'echo "  ✅ {agent.icon} {agent.name} ({agent.id})"')
+
+        lines.extend([
+            '',
+            'echo ""',
+            'echo "📜 SOUL.md files are in place."',
+            '',
+            'if [ "$SKIP_REGISTER" -eq 0 ]; then',
+            '    echo ""',
+            '    echo "🔧 Registering agents with OpenClaw..."',
+        ])
+
+        for agent in self.template.agents:
+            contacts = self.template.permissions.get(agent.id, [])
+            contacts_str = ",".join(contacts) if contacts else ""
+            lines.append(
+                f'    openclaw agent create --id {agent.id} '
+                f'--name "{agent.icon} {agent.name}" '
+                f'--workspace "${{WORKSPACE_DIR}}/{agent.id}" '
+                f'--contacts "{contacts_str}" 2>/dev/null || '
+                f'echo "    ⚠️  Agent {agent.id} may already exist, skipping."'
+            )
+
+        lines.extend([
+            '',
+            '    echo ""',
+            '    echo "🔄 Restarting OpenClaw gateway..."',
+            '    openclaw gateway restart 2>/dev/null || echo "    ⚠️  Gateway restart skipped."',
+            'fi',
+            '',
+            'echo ""',
+            'echo "============================================"',
+            f'echo "✅ {self.template.icon} {self.template.name} setup complete!"',
+            'echo ""',
+            'echo "Next steps:"',
+            'echo "  1. Review SOUL.md files in agent_workspaces/"',
+            'echo "  2. Customize agent models in config/agents.yaml"',
+            'echo "  3. Start your system"',
+            'echo "============================================"',
+        ])
+
+        path = self.output_dir / "install_agents.sh"
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        path.chmod(0o755)
+
+    # ------------------------------------------------------------------
+    # Permission matrix (markdown)
+    # ------------------------------------------------------------------
+
+    def render_permission_matrix(self):
+        """Generate a markdown permission matrix for reference."""
+        agent_ids = self.template.get_agent_ids()
+        agent_names = {a.id: f"{a.icon}{a.name}" for a in self.template.agents}
+
+        lines = [
+            f"# {self.template.icon} {self.template.name} — 权限矩阵",
+            "",
+            "| From ↓ \\ To → |" + "|".join(f" {agent_names[a]} " for a in agent_ids) + "|",
+            "|" + "|".join("---" for _ in range(len(agent_ids) + 1)) + "|",
+        ]
+
+        for src in agent_ids:
+            targets = set(self.template.permissions.get(src, []))
+            cells = []
+            for dst in agent_ids:
+                if src == dst:
+                    cells.append(" — ")
+                elif dst in targets:
+                    cells.append(" ✅ ")
+                else:
+                    cells.append("    ")
+            lines.append(f"| **{agent_names[src]}** |" + "|".join(cells) + "|")
+
+        lines.extend(["", "---", f"_Generated by The 36 Guilds · template v{self.template.version}_"])
+
+        docs_dir = self.output_dir / "docs"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        (docs_dir / "permission_matrix.md").write_text("\n".join(lines), encoding="utf-8")
+
+    # ------------------------------------------------------------------
+    # Flow diagram (text-based)
+    # ------------------------------------------------------------------
+
+    def render_flow_diagram(self):
+        """Generate a text-based task flow diagram."""
+        lines = [
+            f"# {self.template.icon} {self.template.name} — 任务流转图",
+            "",
+            "## 阶段概览",
+        ]
+
+        for stage in self.template.stages:
+            agents_at = self.template.get_agents_at_stage(stage.id)
+            agent_str = ", ".join(f"{a.icon}{a.name}" for a in agents_at)
+            lines.append(f"  {stage.name} → [{agent_str}]")
+
+        lines.extend(["", "## 流转步骤", ""])
+
+        for i, step in enumerate(self.template.task_flow, 1):
+            from_str = step.from_agent if isinstance(step.from_agent, str) else " + ".join(step.from_agent)
+            to_str = step.to_agent if isinstance(step.to_agent, str) else " + ".join(step.to_agent)
+
+            from_agent = self.template.get_agent(from_str) if isinstance(step.from_agent, str) else None
+            to_agent = self.template.get_agent(to_str) if isinstance(step.to_agent, str) else None
+
+            from_label = f"{from_agent.icon}{from_agent.name}" if from_agent else from_str
+            to_label = f"{to_agent.icon}{to_agent.name}" if to_agent else to_str
+
+            arrow = "→✅→" if not step.can_reject else "→🚫→"
+            lines.append(f"  {i}. {from_label} {arrow} {to_label}")
+            lines.append(f"     {step.action}")
+            if step.can_reject and step.reject_to:
+                reject_agent = self.template.get_agent(step.reject_to)
+                reject_label = f"{reject_agent.icon}{reject_agent.name}" if reject_agent else step.reject_to
+                lines.append(f"     (可打回至: {reject_label})")
+            lines.append("")
+
+        lines.extend(["## 审核关卡", ""])
+        for gate in self.template.review_gates:
+            reviewer = self.template.get_agent(gate.reviewer)
+            reviewer_label = f"{reviewer.icon}{reviewer.name}" if reviewer else gate.reviewer
+            lines.append(f"  🔍 {gate.stage} 阶段 — 审核人: {reviewer_label}")
+            for criterion in gate.criteria:
+                lines.append(f"     - {criterion}")
+            if gate.reject_to:
+                reject_agent = self.template.get_agent(gate.reject_to)
+                reject_label = f"{reject_agent.icon}{reject_agent.name}" if reject_agent else gate.reject_to
+                lines.append(f"     封驳打回至: {reject_label}")
+            lines.append("")
+
+        docs_dir = self.output_dir / "docs"
+        docs_dir.mkdir(parents=True, exist_ok=True)
+        (docs_dir / "task_flow.md").write_text("\n".join(lines), encoding="utf-8")

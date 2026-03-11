@@ -1,0 +1,101 @@
+template:
+  name: 现代IT公司
+  name_en: Modern IT Company
+  version: '1.0'
+  category: corporate
+system:
+  heartbeat_interval: 900
+  workspace: ./agent_workspaces
+stages:
+- id: intake
+  name: 需求接入
+  description: CEO/CTO 接收外部任务，评估优先级
+- id: planning
+  name: 产品规划
+  description: 产品经理分析需求，拆解用户故事和任务
+- id: review
+  name: 技术评审
+  description: 技术负责人审查架构方案和技术可行性
+- id: dispatch
+  name: 项目排期
+  description: 项目经理安排开发排期，分配给工程师
+- id: execution
+  name: 开发实现
+  description: 前端/后端/DevOps 并行开发
+- id: qa
+  name: 质量验收
+  description: QA 工程师测试验收，确保质量达标
+agents:
+  cto:
+    name: CTO
+    role: 首席技术官
+    stage: intake
+    model: default
+    skills: []
+    permissions:
+    - product_manager
+  product_manager:
+    name: 产品经理
+    role: Product Manager
+    stage: planning
+    model: default
+    skills: []
+    permissions:
+    - cto
+    - tech_lead
+    - project_manager
+  tech_lead:
+    name: 技术负责人
+    role: Tech Lead
+    stage: review
+    model: default
+    skills: []
+    permissions:
+    - cto
+    - product_manager
+  project_manager:
+    name: 项目经理
+    role: Project Manager
+    stage: dispatch
+    model: default
+    skills: []
+    permissions:
+    - cto
+    - product_manager
+    - frontend_dev
+    - backend_dev
+    - devops
+    - qa_engineer
+  frontend_dev:
+    name: 前端工程师
+    role: Frontend Developer
+    stage: execution
+    model: default
+    skills: []
+    permissions:
+    - project_manager
+  backend_dev:
+    name: 后端工程师
+    role: Backend Developer
+    stage: execution
+    model: default
+    skills: []
+    permissions:
+    - project_manager
+  devops:
+    name: DevOps 工程师
+    role: DevOps Engineer
+    stage: execution
+    model: default
+    skills: []
+    permissions:
+    - project_manager
+  qa_engineer:
+    name: QA 工程师
+    role: QA Engineer
+    stage: qa
+    model: default
+    skills: []
+    permissions:
+    - project_manager
+    - cto
